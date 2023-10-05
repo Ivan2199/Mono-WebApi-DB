@@ -1,94 +1,125 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
-using System.Linq;
+﻿// VehicleController.cs
+using System;
 using System.Net;
 using System.Net.Http;
-using System.Web.Helpers;
 using System.Web.Http;
-using System.Xml.Linq;
+using WebProject.Data;
 using WebProject.Models;
+using Npgsql;
 
 namespace WebProject.Controllers
 {
     public class VehicleController : ApiController
     {
+        private readonly DataAccess _dataAccess;
 
-
-        private static List<Vehicle> Vehicles = new List<Vehicle>();
-        // GET api/<controller>
-        [HttpGet]
-        public HttpResponseMessage Get(string VehicleType = null)
+        public VehicleController()
         {
-            if (VehicleType != null)
-            {
-                
-            }
-            if (Vehicles.Count == 0)
-            {
-                return Request.CreateResponse(HttpStatusCode.NoContent, "List is empty");
-            }
-            return Request.CreateResponse(HttpStatusCode.OK, Vehicles);
+            _dataAccess = new DataAccess();
+            _dataAccess.InitializeDatabase();
         }
 
-        // GET api/<controller>/
-        public HttpResponseMessage Get(int id)
+        [HttpGet]
+        public HttpResponseMessage Get(string vehicleType = null)
         {
-            Vehicle vehicle = Vehicles.Find(x => x.Id == id);
-           
-           
-            if (vehicle == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.NoContent, "No Vehicle with that Id"); 
+                var vehicles = _dataAccess.GetVehicles(vehicleType);
+
+                if (vehicles.Count == 0)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NoContent, "List is empty");
+                }
+
+                return Request.CreateResponse(HttpStatusCode.OK, vehicles);
             }
-            else
+            catch (Exception ex)
             {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        [HttpGet]
+        public HttpResponseMessage Get(Guid id)
+        {
+            try
+            {
+                var vehicle = _dataAccess.GetVehicleById(id);
+
+                if (vehicle == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NoContent, "No Vehicle with that Id");
+                }
+
                 return Request.CreateResponse(HttpStatusCode.OK, vehicle);
             }
+            catch (Exception ex)
+            {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
-        // POST api/<controller>
         [HttpPost]
         public HttpResponseMessage Post([FromBody] Vehicle vehicle)
         {
-            if (vehicle == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.NoContent, "No data has been entered");
+                if (vehicle == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, "No data has been entered");
+                }
+
+                _dataAccess.AddVehicle(vehicle);
+
+                return Request.CreateResponse(HttpStatusCode.Created, "Data has been entered successfully");
             }
-            
-            Vehicles.Add(vehicle);
-            return Request.CreateResponse(HttpStatusCode.OK, "Data has been entered successfully");
+            catch (Exception ex)
+            {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
-        // PUT api/<controller>/5
-        public HttpResponseMessage Put(int id, [FromBody] Vehicle veihcleUpdated)
+        [HttpPut]
+        public HttpResponseMessage Put(Guid id, [FromBody] Vehicle updatedVehicle)
         {
-            Vehicle vehicleCurrent = Vehicles.Find(x => x.Id == id);
-            if (vehicleCurrent == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.NoContent, "No vehicle with that id was found");
-            }
-            else
-            {
-                vehicleCurrent.VehicleOwner = veihcleUpdated.VehicleOwner;
-                vehicleCurrent.VehicleMileage = veihcleUpdated.VehicleMileage;
+                var vehicleCurrent = _dataAccess.GetVehicleById(id);
+
+                if (vehicleCurrent == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NotFound, "No vehicle with that id was found");
+                }
+
+                _dataAccess.UpdateVehicle(id, updatedVehicle);
+
                 return Request.CreateResponse(HttpStatusCode.OK, "Data has been updated successfully");
             }
-            
+            catch (Exception ex)
+            {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
-        // DELETE api/<controller>/5
-        public HttpResponseMessage Delete(int id)
+        [HttpDelete]
+        public HttpResponseMessage Delete(Guid id)
         {
-            Vehicle vehicle = Vehicles.Find(x => x.Id == id);
-            if (vehicle == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.NoContent, "No vehicle with that id was found");
-            }
-            else
-            {
-                Vehicles.Remove(vehicle);
+                var vehicle = _dataAccess.GetVehicleById(id);
+
+                if (vehicle == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NotFound, "No vehicle with that id was found");
+                }
+
+                _dataAccess.DeleteVehicle(id);
+
                 return Request.CreateResponse(HttpStatusCode.OK, "Vehicle has been deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
         }
     }
